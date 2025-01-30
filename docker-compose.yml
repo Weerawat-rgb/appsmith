@@ -1,0 +1,36 @@
+services:
+  appsmith:
+    image: appsmith/appsmith-ce
+    container_name: appsmith
+    ports:
+      - "8088:80"
+    environment:
+      APPSMITH_MONGODB_URI: "mongodb://mongodb:27017/appsmith?replicaSet=rs0"
+      APPSMITH_REDIS_URL: "redis://redis:6379"
+      APPSMITH_ENCRYPTION_PASSWORD: "password123"
+      APPSMITH_ENCRYPTION_SALT: "salt123"
+    depends_on:
+      - mongodb
+      - redis
+
+  mongodb:
+    image: mongo:4.4.6
+    container_name: mongodb
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "rs.status()"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  mongo-init:
+    image: mongo:4.4.6
+    restart: "no"
+    depends_on:
+      - mongodb
+    command: >
+      bash -c "sleep 10 && mongo --host mongodb:27017 --eval 'rs.initiate({_id: \"rs0\", members: [{_id: 0, host: \"mongodb:27017\"}]})'"
+
+  redis:
+    image: redis:6.2.0
+    container_name: redis
